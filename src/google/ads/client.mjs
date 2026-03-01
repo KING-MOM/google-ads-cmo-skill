@@ -9,7 +9,7 @@ import { sleep } from '../../core/util/sleep.mjs';
 const _tokenCache = new Map(); // client_id → { token, expiry }
 
 async function refreshAccessToken(creds) {
-  const cacheKey = creds.client_id;
+  const cacheKey = `${creds.client_id}:${creds.refresh_token}`;
   const cached = _tokenCache.get(cacheKey);
   if (cached && Date.now() < cached.expiry - 30_000) return cached.token;
 
