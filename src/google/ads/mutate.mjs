@@ -70,7 +70,8 @@ export async function setCampaignBudget({ creds, campaignId, dailyBudgetAmount }
 export async function pauseKeyword({ creds, adGroupId, criterionId }) {
   const gid = requireIntId(adGroupId, 'adGroupId');
   const cid = requireIntId(criterionId, 'criterionId');
-  const resourceName = `customers/${creds.customer_id}/adGroups/${gid}/criteria/${cid}`;
+  // Google Ads resource name uses tilde composite key: {adGroupId}~{criterionId}
+  const resourceName = `customers/${creds.customer_id}/adGroupCriteria/${gid}~${cid}`;
   return gaqlMutate({
     creds,
     resource: 'adGroupCriteria',

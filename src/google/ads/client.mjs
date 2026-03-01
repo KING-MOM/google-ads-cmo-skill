@@ -4,13 +4,14 @@
 import { sleep } from '../../core/util/sleep.mjs';
 
 // --------------------------------------------------------------------------
-// In-process token cache
+// In-process token cache — keyed by client_id to support multi-account processes
 // --------------------------------------------------------------------------
-let _token = null;
-let _tokenExpiry = 0;
+const _tokenCache = new Map(); // client_id → { token, expiry }
 
 async function refreshAccessToken(creds) {
-  if (_token && Date.now() < _tokenExpiry - 30_000) return _token;
+  const cacheKey = creds.client_id;
+  const cached = _tokenCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiry - 30_000) return cached.token;
 
   const body = new URLSearchParams({
     client_id: creds.client_id,
@@ -39,9 +40,8 @@ async function refreshAccessToken(creds) {
     if (!res.ok) throw new Error(`OAuth token refresh failed ${res.status}: ${text.slice(0, 400)}`);
 
     const data = JSON.parse(text);
-    _token = data.access_token;
-    _tokenExpiry = Date.now() + data.expires_in * 1000;
-    return _token;
+    _tokenCache.set(cacheKey, { token: data.access_token, expiry: Date.now() + data.expires_in * 1000 });
+    return data.access_token;
   }
   throw new Error('OAuth token refresh: exhausted retries');
 }
