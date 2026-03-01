@@ -5,10 +5,23 @@ import { gaqlMutate } from './client.mjs';
 import { getCampaignBudget } from './insights.mjs';
 
 // --------------------------------------------------------------------------
+// ID validation — prevents invalid GAQL from NaN or non-integer inputs
+// --------------------------------------------------------------------------
+function requireIntId(value, name) {
+  const s = String(value ?? '').trim();
+  const n = parseInt(s, 10);
+  if (!Number.isFinite(n) || n <= 0 || String(n) !== s) {
+    throw new Error(`${name} must be a positive integer, got: ${JSON.stringify(value)}`);
+  }
+  return s;
+}
+
+// --------------------------------------------------------------------------
 // Campaign status
 // --------------------------------------------------------------------------
 export async function pauseCampaign({ creds, campaignId }) {
-  const resourceName = `customers/${creds.customer_id}/campaigns/${campaignId}`;
+  const id = requireIntId(campaignId, 'campaignId');
+  const resourceName = `customers/${creds.customer_id}/campaigns/${id}`;
   return gaqlMutate({
     creds,
     resource: 'campaigns',
@@ -17,7 +30,8 @@ export async function pauseCampaign({ creds, campaignId }) {
 }
 
 export async function enableCampaign({ creds, campaignId }) {
-  const resourceName = `customers/${creds.customer_id}/campaigns/${campaignId}`;
+  const id = requireIntId(campaignId, 'campaignId');
+  const resourceName = `customers/${creds.customer_id}/campaigns/${id}`;
   return gaqlMutate({
     creds,
     resource: 'campaigns',
@@ -31,6 +45,7 @@ export async function enableCampaign({ creds, campaignId }) {
 // dailyBudgetAmount is in the account currency (e.g. 500 = $500 MXN/day).
 // --------------------------------------------------------------------------
 export async function setCampaignBudget({ creds, campaignId, dailyBudgetAmount }) {
+  requireIntId(campaignId, 'campaignId');
   const campaignRow = await getCampaignBudget({ creds, campaignId });
   if (!campaignRow) throw new Error(`Campaign ${campaignId} not found`);
 
@@ -53,7 +68,9 @@ export async function setCampaignBudget({ creds, campaignId, dailyBudgetAmount }
 // Use keywords.insights to get adGroupId + criterionId
 // --------------------------------------------------------------------------
 export async function pauseKeyword({ creds, adGroupId, criterionId }) {
-  const resourceName = `customers/${creds.customer_id}/adGroups/${adGroupId}/criteria/${criterionId}`;
+  const gid = requireIntId(adGroupId, 'adGroupId');
+  const cid = requireIntId(criterionId, 'criterionId');
+  const resourceName = `customers/${creds.customer_id}/adGroups/${gid}/criteria/${cid}`;
   return gaqlMutate({
     creds,
     resource: 'adGroupCriteria',

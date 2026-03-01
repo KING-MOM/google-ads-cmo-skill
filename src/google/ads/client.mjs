@@ -19,19 +19,31 @@ async function refreshAccessToken(creds) {
     grant_type: 'refresh_token'
   });
 
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString()
-  });
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
 
-  const text = await res.text();
-  if (!res.ok) throw new Error(`OAuth token refresh failed ${res.status}: ${text.slice(0, 400)}`);
+    // Retry only on transient server errors — not on 4xx (bad credentials = permanent)
+    if (res.status >= 500 && attempt < maxRetries) {
+      const wait = Math.min(1000 * 2 ** (attempt - 1), 30_000);
+      console.error(`OAuth token refresh ${res.status}, retry ${attempt}/${maxRetries} in ${wait}ms…`);
+      await sleep(wait);
+      continue;
+    }
 
-  const data = JSON.parse(text);
-  _token = data.access_token;
-  _tokenExpiry = Date.now() + data.expires_in * 1000;
-  return _token;
+    const text = await res.text();
+    if (!res.ok) throw new Error(`OAuth token refresh failed ${res.status}: ${text.slice(0, 400)}`);
+
+    const data = JSON.parse(text);
+    _token = data.access_token;
+    _tokenExpiry = Date.now() + data.expires_in * 1000;
+    return _token;
+  }
+  throw new Error('OAuth token refresh: exhausted retries');
 }
 
 // --------------------------------------------------------------------------
